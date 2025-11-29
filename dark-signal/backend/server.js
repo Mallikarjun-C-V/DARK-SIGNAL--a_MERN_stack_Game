@@ -4,17 +4,40 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// DATABASE CONNECTION
+// ===============================
+// DATABASE CONNECTION (Vercel-safe)
+// ===============================
 const mongoURI = process.env.MONGO_URI;
 
-mongoose.connect(mongoURI)
-  .then(() => console.log('>> DATABASE LINKED: SYSTEM ONLINE'))
-  .catch(err => console.error('>> DATABASE ERROR:', err));
+// Prevent Vercel from opening multiple Mongo connections
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    }).then((mongoose) => mongoose);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
+// Call DB connect
+connectDB()
+  .then(() => console.log(">> DATABASE LINKED: SYSTEM ONLINE"))
+  .catch(err => console.log(">> DATABASE ERROR:", err));
 
 // ===============================
 // SCHEMA
@@ -27,7 +50,8 @@ const ScoreSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 });
 
-const Score = mongoose.model('Score', ScoreSchema);
+const Score =
+  mongoose.models.Score || mongoose.model("Score", ScoreSchema);
 
 // ===============================
 // SAVE SCORE
@@ -42,18 +66,20 @@ app.post('/api/score', async (req, res) => {
     console.log(`>> NEW RECORD: ${player} - ${time}s - won: ${won}`);
     res.status(201).json({ message: "Score Saved" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Failed to save score" });
   }
 });
 
 // ===============================
-// GET LEADERBOARD - WINNERS ONLY (Fastest First)
+// GET LEADERBOARD (fastest winners)
 // ===============================
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const scores = await Score.find({ won: true })
-      .sort({ time: 1 })  // Ascending = fastest first
+      .sort({ time: 1 })  
       .limit(10);
+
     res.json(scores);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch leaderboard" });
@@ -61,7 +87,7 @@ app.get('/api/leaderboard', async (req, res) => {
 });
 
 // ===============================
-// OPTIONAL: Get all scores (for debugging)
+// OPTIONAL: All scores
 // ===============================
 app.get('/api/scores/all', async (req, res) => {
   try {
@@ -72,7 +98,11 @@ app.get('/api/scores/all', async (req, res) => {
   }
 });
 
-// START SERVER
-app.listen(PORT, () => {
-  console.log(`>> SERVER RUNNING ON PORT ${PORT}`);
-});
+// ===============================
+// VERY IMPORTANT FOR VERCEL
+// ===============================
+// ⛔ DO NOT USE app.listen()
+// ⛔ DO NOT USE PORTS
+// ✔ Export app as a module
+// ===============================
+module.exports = app;
