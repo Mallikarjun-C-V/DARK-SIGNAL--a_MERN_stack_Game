@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 // DATABASE CONNECTION
-const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/darksignal';
+const mongoURI = process.env.MONGO_URI;
 
 mongoose.connect(mongoURI)
   .then(() => console.log('>> DATABASE LINKED: SYSTEM ONLINE'))

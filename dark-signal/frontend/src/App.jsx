@@ -9,7 +9,7 @@ import confetti from 'canvas-confetti';
 const GRID_SIZE = 10;
 const INITIAL_CHARGES = 2;
 const RECHARGE_TIME = 5000;
-const API_URL = 'http://dark-signal-a-mern-stack-game.vercel.app';
+const API_URL = 'https://dark-signal-a-mern-stack-game.vercel.app/api';
 
 // ==========================================
 // 2. AUDIO FREQUENCIES
